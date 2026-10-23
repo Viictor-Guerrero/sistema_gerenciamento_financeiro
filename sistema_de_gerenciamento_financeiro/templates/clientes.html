@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerenciar Clientes</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1 class="header-text">Gerenciar Clientes</h1>
+    <a href="{{ url_for('index') }}" class="back-link">← Voltar para o Início</a>
+    <hr>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <ul class="flashes">
+        {% for category, message in messages %}
+        <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+
+    <h2 class="sub-header-text">Cadastrar Novo Cliente</h2>
+    <form method="POST" class="form-section">
+        <label for="nome">Nome do Cliente:</label>
+        <input type="text" id="nome" name="nome" required>
+        <label for="telefone">Telefone:</label>
+        <input type="text" id="telefone" name="telefone">
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <div class="filter-section" style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
+        <label for="search-input" style="font-weight: bold; display: block; margin-bottom: 8px;">🔍 Buscar Cliente:</label>
+        <input type="text" id="search-input" placeholder="Digite o nome do cliente..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="sub-header-text">Lista de Clientes</h2>
+        <button id="toggle-list-btn" class="button-link secondary-button" style="margin-bottom: 10px;">Ocultar Lista</button>
+    </div>
+
+    <div id="client-list-container">
+    {% if clientes %}
+        <div class="export-button-container">
+            <a href="{{ url_for('exportar_clientes') }}" class="button-link export-button">Exportar para Excel</a>
+        </div>
+        <table class="data-table" id="clients-table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Telefone</th>
+                    <th>Status / Último Pedido</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                    <tr>
+                        <td>{{ cliente.info.nome }}</td>
+                        <td>{{ cliente.info.telefone if cliente.info.telefone else 'N/A' }}</td>
+                        <td>
+                            {% if cliente.dias_inatividade is none %}
+                                <span class="status-badge" style="background-color: #6c757d; color: white; padding: 4px 8px; border-radius: 4px;">Sem pedidos</span>
+                            {% elif cliente.dias_inatividade <= 30 %}
+                                <span class="status-badge" style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">Ativo (há {{ cliente.dias_inatividade }} dias)</span>
+                            {% elif cliente.dias_inatividade <= 60 %}
+                                <span class="status-badge" style="background-color: #ffc107; color: #000; padding: 4px 8px; border-radius: 4px;">Inativo (> 30 dias)</span>
+                            {% else %}
+                                <span class="status-badge" style="background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px;">Crítico (> 60 dias)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <a href="{{ url_for('editar_cliente', id=cliente.info.id) }}" class="button-link edit-button">Editar</a>
+                                <a href="{{ url_for('excluir_cliente', id=cliente.info.id) }}" class="button-link delete-button" onclick="return confirm('Excluir este cliente?')">Excluir</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Nenhum cliente cadastrado ainda.</p>
+    {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleBtn = document.getElementById('toggle-list-btn');
+        const clientListContainer = document.getElementById('client-list-container');
+        const searchInput = document.getElementById('search-input');
+        const tableRows = document.querySelectorAll('#clients-table tbody tr');
+
+        if (toggleBtn && clientListContainer) {
+            toggleBtn.addEventListener('click', () => {
+                const isVisible = clientListContainer.style.display !== 'none';
+                clientListContainer.style.display = isVisible ? 'none' : 'block';
+                toggleBtn.textContent = isVisible ? 'Mostrar Lista' : 'Ocultar Lista';
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                tableRows.forEach(row => {
+                    const clientName = row.cells[0].textContent.toLowerCase();
+                    row.style.display = clientName.includes(searchTerm) ? '' : 'none';
+                });
+            });
+        }
+    });
+</script>
+</body>
+</html>

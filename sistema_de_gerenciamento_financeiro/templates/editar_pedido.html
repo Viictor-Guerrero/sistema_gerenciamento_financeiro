@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Pedido</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1 class="header-text">Editar Pedido</h1>
+    <a href="{{ url_for('pedidos') }}" class="back-link">← Voltar para Pedidos</a>
+    <hr>
+    <form method="POST" class="form-section">
+        <label for="numero_pedido">Número do Pedido:</label>
+        <input type="text" id="numero_pedido" name="numero_pedido" value="{{ pedido.numero_pedido }}" required>
+
+        <!-- NOVO CAMPO: DATA DE EMISSÃO -->
+        <label for="data_emissao" style="margin-top: 10px;">Data de Emissão:</label>
+        <input type="date" id="data_emissao" name="data_emissao" value="{{ pedido.data_emissao.isoformat() }}" required>
+
+        <label for="cliente_nome" style="margin-top: 10px;">Nome do Cliente:</label>
+        <input type="text" id="cliente_nome" name="cliente_nome" value="{{ pedido.cliente_nome }}" required>
+        
+        <label for="vendedor" style="margin-top: 10px;">Vendedor:</label>
+        <select id="vendedor" name="vendedor" required>
+            <option value="Fran" {% if pedido.vendedor == 'Fran' %}selected{% endif %}>Fran</option>
+            <option value="Sandra" {% if pedido.vendedor == 'Sandra' %}selected{% endif %}>Sandra</option>
+            <option value="Caio" {% if pedido.vendedor == 'Caio' %}selected{% endif %}>Caio</option>
+            <option value="Rayanne" {% if pedido.vendedor == 'Rayanne' %}selected{% endif %}>Rayanne</option>
+            <option value="Eliane" {% if pedido.vendedor == 'Eliane' %}selected{% endif %}>Eliane</option>
+        </select>
+
+        <label for="tipo_produto" style="margin-top: 10px;">Tipo de Produto:</label>
+        <select id="tipo_produto" name="tipo_produto" required>
+            <option value="Seco" {% if pedido.tipo_produto == 'Seco' %}selected{% endif %}>Seco</option>
+            <option value="Gelado" {% if pedido.tipo_produto == 'Gelado' %}selected{% endif %}>Gelado</option>
+        </select>
+
+        <label for="valor_display" style="margin-top: 10px;">Valor Total:</label>
+        <div style="display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 1em;">R$</span>
+            <input type="text" id="valor_display" value="{{ '%.2f'|format(pedido.valor_total)|replace('.', ',') }}" required style="flex-grow: 1;" inputmode="decimal">
+            <input type="hidden" id="valor" name="valor" value="{{ pedido.valor_total }}">
+        </div>
+
+        <label for="forma_pagamento" style="margin-top: 10px;">Forma de Pagamento:</label>
+        <select id="forma_pagamento" name="forma_pagamento" required>
+            <option value="A Vista" {% if pedido.forma_pagamento == 'A Vista' %}selected{% endif %}>À Vista</option>
+            <option value="A Prazo" {% if pedido.forma_pagamento == 'A Prazo' %}selected{% endif %}>À Prazo (Cartão)</option>
+            <option value="Boleto" {% if pedido.forma_pagamento == 'Boleto' %}selected{% endif %}>Boleto</option>
+        </select>
+
+        <div id="parcelas_container" style="display: none;">
+            <label for="num_parcelas">Número de Parcelas:</label>
+            <select id="num_parcelas" name="num_parcelas">
+                {% for i in range(1, 13) %}
+                <option value="{{ i }}" {% if i == pedido.num_parcelas %}selected{% endif %}>{{ i }}x</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <label for="data_vencimento" style="margin-top: 10px;">Data de Vencimento (1ª Parcela):</label>
+        <!-- Nota: data_vencimento_inicial deve ser passada pela rota no app.py para preencher este campo -->
+        <input type="date" id="data_vencimento" name="data_vencimento" value="{{ pedido.parcelas[0].data_vencimento.isoformat() if pedido.parcelas else '' }}" required>
+
+        <button type="submit" style="margin-top: 20px;">Salvar Alterações</button>
+    </form>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const formaPagamentoSelect = document.getElementById('forma_pagamento');
+        const parcelasContainer = document.getElementById('parcelas_container');
+        
+        function toggleParcelas() {
+            parcelasContainer.style.display = (formaPagamentoSelect.value === 'A Prazo' || formaPagamentoSelect.value === 'Boleto') ? 'block' : 'none';
+        }
+        
+        formaPagamentoSelect.addEventListener('change', toggleParcelas);
+        toggleParcelas();
+
+        // Lógica de máscara para o valor
+        const valorDisplay = document.getElementById('valor_display');
+        const valorHidden = document.getElementById('valor');
+        valorDisplay.addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v) {
+                let n = parseInt(v, 10) / 100;
+                e.target.value = n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                valorHidden.value = n.toFixed(2);
+            }
+        });
+    });
+</script>
+</body>
+</html>

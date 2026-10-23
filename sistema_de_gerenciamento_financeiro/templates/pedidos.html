@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerenciar Pedidos</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<style>
+    .ts-control { border-radius: 6px !important; padding: 10px !important; border: 1px solid var(--border-color) !important; font-family: inherit !important; }
+    .ts-dropdown { border-radius: 0 0 6px 6px !important; }
+    .table-container { width: 100%; overflow-x: auto; margin-top: 20px; }
+    .data-table { width: 100%; min-width: 1100px; font-size: 0.9rem; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #eee; }
+    .col-check { width: 40px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1 class="header-text">Gerenciar Pedidos</h1>
+<a href="{{ url_for('index') }}" class="back-link">← Voltar para o Início</a>
+<hr>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <ul class="flashes">
+        {% for category, message in messages %}
+        <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+
+    <h2 class="sub-header-text">Lançar Novo Pedido</h2>
+    <form method="POST" class="form-section">
+        <label for="numero_pedido">Número do Pedido:</label>
+        <input type="text" id="numero_pedido" name="numero_pedido" required>
+
+        <label for="data_emissao" style="margin-top: 10px;">Data de Emissão:</label>
+        <input type="date" id="data_emissao" name="data_emissao" required>
+
+        <label for="cliente_nome" style="margin-top: 10px;">Selecionar Cliente (Auto Pesquisa):</label>
+        <select id="cliente_nome" name="cliente_nome" placeholder="Digite para buscar um cliente..." required>
+            <option value=""></option>
+            {% for c in clientes %}
+                <option value="{{ c.nome }}">{{ c.nome }}</option>
+            {% endfor %}
+        </select>
+        <p style="font-size: 0.8rem; margin-top: 5px; margin-bottom: 15px;">
+            <a href="{{ url_for('clientes') }}">+ Cadastrar novo cliente</a>
+        </p>
+
+        <label for="vendedor">Vendedor:</label>
+        <select id="vendedor" name="vendedor" required>
+            <option value="" disabled selected>Selecione um vendedor</option>
+            <option value="Fran">Fran</option>
+            <option value="Sandra">Sandra</option>
+            <option value="Caio">Caio</option>
+            <option value="Rayanne">Rayanne</option>
+            <option value="Eliane">Eliane</option>
+        </select>
+
+        <label for="valor_display" style="margin-top: 10px;">Valor Total:</label>
+        <div style="display: flex; align-items: center; gap: 5px;">
+            <span>R$</span>
+            <input type="text" id="valor_display" placeholder="123,45" required style="flex-grow: 1;" inputmode="decimal">
+            <input type="hidden" id="valor" name="valor">
+        </div>
+
+        <label for="tipo_produto" style="margin-top: 10px;">Tipo de Produto:</label>
+        <select id="tipo_produto" name="tipo_produto" required>
+            <option value="Seco">Seco</option>
+            <option value="Gelado">Gelado</option>
+        </select>
+
+        <label for="forma_pagamento" style="margin-top: 10px;">Forma de Pagamento:</label>
+        <select id="forma_pagamento" name="forma_pagamento" required>
+            <option value="A Vista">À Vista</option>
+            <option value="A Prazo">À Prazo (Cartão)</option>
+            <option value="Boleto">Boleto</option>
+        </select>
+
+        <div id="parcelas_container" style="display: none;">
+            <label for="num_parcelas">Número de Parcelas:</label>
+            <select id="num_parcelas" name="num_parcelas">
+                {% for i in range(1, 13) %}
+                <option value="{{ i }}">{{ i }}x</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <label for="data_vencimento" style="margin-top: 10px;">Data de Vencimento (1ª Parcela):</label>
+        <input type="date" id="data_vencimento" name="data_vencimento" required>
+
+        <button type="submit" style="margin-top: 20px;">Lançar Pedido</button>
+    </form>
+
+    <h2 class="sub-header-text">Pedidos Lançados</h2>
+    {% if pedidos %}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <button type="button" id="btn-excluir-massa" class="button-link delete-button" style="background-color: var(--danger-color); color: white;">Excluir Selecionados</button>
+            
+            <a href="{{ url_for('exportar_todos_pedidos_lancados') }}" class="button-link export-button" style="margin-top: 0;">Exportar Excel</a>
+        </div>
+
+        <form id="form-exclusao-massa" action="{{ url_for('excluir_pedidos_em_massa') }}" method="POST">
+            <div class="table-container">
+                <table class="data-table" id="orders-table">
+                    <thead>
+                        <tr>
+                            <th class="col-check"><input type="checkbox" id="select-all"></th>
+                            <th>Nº Pedido</th>
+                            <th>Emissão</th> 
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Tipo</th>
+                            <th>Pagamento</th>
+                            <th>Total</th>
+                            <th>Autor</th>
+                            <th>Ações</th>
+                            <th>Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pedido in pedidos %}
+                            <tr class="pedido-row">
+                                <td class="col-check"><input type="checkbox" name="pedidos_ids" value="{{ pedido.id }}" class="pedido-checkbox"></td>
+                                <td>{{ pedido.numero_pedido }}</td>
+                                <td>{{ pedido.data_emissao.strftime('%d/%m/%Y') }}</td> 
+                                <td>{{ pedido.cliente_nome }}</td>
+                                <td>{{ pedido.vendedor }}</td>
+                                <td>{{ pedido.tipo_produto }}</td>
+                                <td>{{ pedido.forma_pagamento }}</td>
+                                <td>R$ {{ "%.2f"|format(pedido.valor_total)|replace('.', ',') }}</td>
+                                <td>{{ pedido.criado_por }}</td>
+                                <td>
+                                    <div style="display: flex; gap: 5px;">
+                                        <a href="{{ url_for('editar_pedido', id=pedido.id) }}" class="button-link edit-button">Editar</a>
+                                        <a href="{{ url_for('excluir_pedido', id=pedido.id) }}" class="button-link delete-button" onclick="return confirm('Excluir?')">Excluir</a>
+                                    </div>
+                                </td>
+                                <td><button type="button" class="toggle-parcelas button-link secondary-button" data-pedido-id="{{ pedido.id }}">Ver Parcelas</button></td>
+                            </tr>
+                            {% for parcela in pedido.parcelas|sort(attribute='parcela_num') %}
+                                <tr class="parcela-row" data-pedido-id="{{ pedido.id }}" style="display: none;">
+                                    <td colspan="11">
+                                        <div style="background-color: #f9f9f9; padding: 10px; border-left: 3px solid #007bff; margin: 5px 0;">
+                                            Parcela {{ parcela.parcela_num }}/{{ pedido.num_parcelas }} | R$ {{ "%.2f"|format(parcela.valor)|replace('.', ',') }} | Venc: {{ parcela.data_vencimento.strftime('%d/%m/%Y') }} | Status: {{ parcela.status }}
+                                            <div style="margin-top: 5px;">
+                                                {% if parcela.status == 'Pendente' %}
+                                                    <form action="{{ url_for('dar_baixa_parcela', id=parcela.id) }}" method="post" style="display:inline;"><button type="submit" class="button-link dar-baixa-button">Baixar</button></form>
+                                                {% else %}
+                                                    <form action="{{ url_for('retirar_baixa_parcela', id=parcela.id) }}" method="post" style="display:inline;"><button type="submit" class="button-link retirar-baixa-button" style="background-color: #6c757d;">Retirar</button></form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        new TomSelect("#cliente_nome",{ create: false, sortField: "text" });
+
+        document.getElementById('data_emissao').valueAsDate = new Date();
+
+        const valorDisplay = document.getElementById('valor_display');
+        const valorHidden = document.getElementById('valor');
+        valorDisplay.addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v) {
+                let n = parseInt(v, 10) / 100;
+                e.target.value = n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                valorHidden.value = n.toFixed(2);
+            }
+        });
+
+        const forma = document.getElementById('forma_pagamento');
+        const container = document.getElementById('parcelas_container');
+        forma.addEventListener('change', () => {
+            container.style.display = (forma.value === 'A Prazo' || forma.value === 'Boleto') ? 'block' : 'none';
+        });
+
+        document.querySelectorAll('.toggle-parcelas').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.pedidoId;
+                const rows = document.querySelectorAll(`.parcela-row[data-pedido-id="${id}"]`);
+                const isHidden = rows[0].style.display === 'none';
+                rows.forEach(r => r.style.display = isHidden ? 'table-row' : 'none');
+                btn.textContent = isHidden ? 'Ocultar' : 'Ver Parcelas';
+            });
+        });
+
+        const selectAll = document.getElementById('select-all');
+        const checks = document.querySelectorAll('.pedido-checkbox');
+        if(selectAll) selectAll.addEventListener('change', () => checks.forEach(c => c.checked = selectAll.checked));
+
+        document.getElementById('btn-excluir-massa').addEventListener('click', () => {
+            const n = document.querySelectorAll('.pedido-checkbox:checked').length;
+            if (n > 0 && confirm(`Excluir ${n} pedidos permanentemente?`)) {
+                document.getElementById('form-exclusao-massa').submit();
+            }
+        });
+    });
+</script>
+</body>
+</html>

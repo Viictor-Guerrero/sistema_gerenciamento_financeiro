@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerenciador de Pedidos</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+    /* Estilos para o novo alerta de vencimento */
+    .alerta-vencimento {
+        border: 2px solid #ffc107; /* Amarelo */
+        background-color: #fff8e1;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        color: #856404;
+    }
+    .alerta-vencimento h3 {
+        color: #856404;
+        margin-top: 0;
+        font-size: 1.1rem;
+    }
+    .alerta-vencimento ul {
+        list-style-type: none;
+        padding-left: 0;
+        margin-top: 10px;
+        max-height: 200px; 
+        overflow-y: auto; 
+    }
+    .alerta-vencimento li {
+        margin-bottom: 5px;
+        border-bottom: 1px dotted #856404;
+        padding-bottom: 5px;
+        padding-left: 5px; 
+    }
+    .alerta-vencimento li:last-child {
+        border-bottom: none;
+    }
+
+    /* Cores de texto */
+    .text-warning { color: #856404; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='images/logo01.png') }}" alt="Logo da Empresa" class="logo-img">
+    </div>
+
+    <h1 class="header-text">Gerenciador de Pedidos</h1>
+    <hr>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <ul class="flashes">
+    {% for category, message in messages %}
+    <p class="{{ category }}">{{ message }}</p>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+
+    {% if current_user.is_authenticated and alerta_parcelas %}
+    <div class="alerta-vencimento">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3>🔔 ALERTA: Parcelas a Vencer (Hoje até Próximos 45 dias)</h3>
+            
+            <a href="{{ url_for('exportar_alerta_vencimento') }}" class="button-link export-button">
+                Exportar Alerta
+            </a>
+        </div>
+        
+        <ul>
+            {% for parcela in alerta_parcelas %}
+                {% set status_alerta = 'Vence Hoje' if parcela.data_vencimento == hoje else 'A Vencer' %}
+                
+                <li style="border-left: 5px solid #ffc107;">
+                    Pedido **{{ parcela.pedido.numero_pedido }}** (Cliente: {{ parcela.pedido.cliente_nome }}) | 
+                    Parcela **{{ parcela.parcela_num }}/{{ parcela.pedido.num_parcelas }}** | 
+                    Status Alerta: <strong class="text-warning">{{ status_alerta }}</strong> |
+                    Vencimento: **{{ parcela.data_vencimento.strftime('%d/%m/%Y') }}**
+                </li>
+            {% endfor %}
+        </ul>
+        <p style="font-size: 0.9rem; text-align: right; margin: 0;">Total de **{{ alerta_parcelas|length }}** parcela(s) em alerta. <a href="{{ url_for('gestao_financeira') }}" style="font-weight: bold; color: #856404;">Ver Detalhes Financeiros</a></p>
+    </div>
+    {% endif %}
+
+    <!-- BLOCO COM FILTRO: Valores Pendentes a Receber por Mês (Exclusivo para Admins) -->
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="card" style="background-color: #f8f9fa; border: 1px solid #dee2e6; margin-bottom: 25px; text-align: left; padding: 20px; border-radius: 8px;">
+        <h3 style="margin-top: 0; color: var(--primary-dark-color); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+            💰 Consulta Rápida: Valores Pendentes a Receber
+        </h3>
+
+        <!-- Formulário de Filtro por Mês e Ano -->
+        <form method="GET" action="{{ url_for('index') }}" style="margin-top: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <label for="filtro_mes" style="font-size: 0.9rem;">Mês:</label>
+                <select id="filtro_mes" name="filtro_mes" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                    {% set meses_nomes = {1:'Janeiro', 2:'Fevereiro', 3:'Março', 4:'Abril', 5:'Maio', 6:'Junho', 7:'Julho', 8:'Agosto', 9:'Setembro', 10:'Outubro', 11:'Novembro', 12:'Dezembro'} %}
+                    {% for m_num, m_nome in meses_nomes.items() %}
+                        <option value="{{ m_num }}" {% if m_num == filtro_mes %}selected{% endif %}>{{ m_nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <label for="filtro_ano" style="font-size: 0.9rem;">Ano:</label>
+                <select id="filtro_ano" name="filtro_ano" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                    {% for y in range(2024, 2031) %}
+                        <option value="{{ y }}" {% if y == filtro_ano %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="filter-button" style="padding: 6px 15px; font-size: 0.9rem; margin-top: 0;">Filtrar</button>
+        </form>
+
+        <!-- Exibição do Resultado Filtrado -->
+        <div style="margin-top: 20px; background: white; padding: 15px; border-radius: 6px; border-left: 4px solid var(--primary-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <span style="font-size: 0.85rem; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total a Receber em {{ filtro_mes }}/{{ filtro_ano }}</span>
+                <div style="font-size: 1.4rem; font-weight: bold; color: #28a745; margin-top: 4px;">
+                    R$ {{ "%.2f"|format(total_filtrado_mes)|replace('.', ',') }}
+                </div>
+            </div>
+            <a href="{{ url_for('gestao_financeira', mes=filtro_mes, ano=filtro_ano) }}" class="button-link secondary-button" style="font-size: 0.85rem; padding: 6px 12px;">
+                Ver Detalhes no Financeiro &rarr;
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="main-options">
+        {% if current_user.is_authenticated %}
+            <p><strong>Bem-vindo,</strong> <strong>{{ current_user.username }}!</strong></p>
+            <div class="option-row">
+                <a href="{{ url_for('clientes') }}" class="button-link login-link">Gerenciar Clientes</a>
+                <a href="{{ url_for('pedidos') }}" class="button-link login-link">Gerenciar Pedidos</a>
+                <a href="{{ url_for('gestao_financeira') }}" class="button-link login-link">Gestão Financeira</a>
+                {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin_users') }}" class="button-link admin-link">Gerenciar Usuários</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="button-link logout-link">Sair</a>
+            </div>
+        {% else %}
+            <p>Por favor, faça login ou registre-se para continuar.</p>
+            <div class="option-row">
+                <a href="{{ url_for('login') }}" class="button-link login-link">Login</a>
+                <a href="{{ url_for('register') }}" class="button-link register-link">Registro</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

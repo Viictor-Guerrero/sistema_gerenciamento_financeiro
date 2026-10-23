@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerenciar Usuários</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1 class="header-text">Painel do Administrador</h1>
+    <a href="{{ url_for('index') }}" class="back-link">← Voltar para o Início</a>
+    <hr>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <ul class="flashes">
+        {% for category, message in messages %}
+        <p class="{{ category }}">{{ message }}</p>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+
+    {% if user_count < 6 %}
+        <h2 class="sub-header-text">Criar Novo Usuário</h2>
+        <form action="{{ url_for('criar_usuario') }}" method="POST" class="form-section">
+            <div class="form-row">
+                <label for="username">Nome de Usuário:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-row" style="margin-top: 10px;">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-row" style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="is_admin" name="is_admin" style="width: auto;">
+                <label for="is_admin">Este usuário será Administrador?</label>
+            </div>
+            <button type="submit" style="margin-top: 15px;">Criar Usuário</button>
+        </form>
+    {% else %}
+        <p class="info" style="color: var(--danger-color);">Limite de 6 usuários atingido.</p>
+    {% endif %}
+
+    <h2 class="sub-header-text">Usuários Cadastrados</h2>
+    {% if usuarios %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Usuário</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in usuarios %}
+                    <tr>
+                        <td data-label="Usuário">{{ user.username }}</td>
+                        <td data-label="Status">
+                            {% if user.is_admin %}
+                                <span class="status-badge admin-badge" style="background-color: #ffd700; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold;">Admin</span>
+                            {% else %}
+                                <span class="status-badge standard-badge">Padrão</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Ações">
+                            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                
+                                {% if user.id != current_user.id %}
+                                    <form action="{{ url_for('toggle_admin', user_id=user.id) }}" method="POST" style="margin: 0;">
+                                        <button type="submit" class="button-link secondary-button">
+                                            {{ 'Remover Admin' if user.is_admin else 'Tornar Admin' }}
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                                <form action="{{ url_for('reset_password', user_id=user.id) }}" method="POST" class="form-reset-password" style="margin: 0; display: flex; gap: 5px;">
+                                    <input type="password" name="new_password" placeholder="Nova senha" required class="input-reset-password" style="width: 100px;">
+                                    <button type="submit" class="button-link reset-button">Resetar</button>
+                                </form>
+
+                                {% if user.id != current_user.id %}
+                                    <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="margin: 0;">
+                                        <button type="submit" class="button-link delete-button" onclick="return confirm('Excluir este usuário?')">Excluir</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Nenhum usuário cadastrado.</p>
+    {% endif %}
+</div>
+</body>
+</html>
